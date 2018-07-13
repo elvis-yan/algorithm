@@ -1,0 +1,1 @@
+Given a grid find the maximjum number of connected colors.
