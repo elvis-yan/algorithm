@@ -1,20 +1,24 @@
 import itertools
+import collections
 
 
 class State:
-    def __init__(self, G, boat_size, man, items=None, parent=None):
+    def __init__(self, G, boat_size, man, items=None, parent=None, taken=[]):
         self.G = G
         self.boat_size = boat_size
         self.man = man
         self.items = set(G) if items is None else set(items)
         self.parent = parent
+        self.taken = taken
 
     def __eq__(self, o):
         return self.G == o.G and self.boat_size == o.boat_size and\
                self.man == o.man and self.items == o.items
 
     def __hash__(self):
-        return hash('-'.join(map(str, [self.man]+list(self.items))))
+        l = list(self.items)
+        l.sort()
+        return hash('-'.join(map(str, [self.man]+l)))
 
     def __str__(self):
         return '{}, {}'.format(self.man, self.items)
@@ -28,7 +32,7 @@ class State:
             if not self.is_conflict(here):
                 there = set(self.G) - here
                 man = (self.man + 1) % 2
-                yield State(self.G, self.boat_size, man, there, parent=self)
+                yield State(self.G, self.boat_size, man, there, parent=self, taken=taken)
         
     def what_can_be_taken(self):
         n = self.boat_size-1 if self.boat_size-1 < len(self.items) else len(self.items)
@@ -63,13 +67,12 @@ def search(star, Frontier):
 def display(path):
     width = len(', '.join(path[0].G)) + 5
     for s1,s2 in zip(path, path[1:]):
-        diff = set(s1.items) - (set(s1.G)-set(s2.items))
         if s1.man == 0:
-            print('{{:<{}}}     [{{}}, {{}}] ->  {{:<{}}}'.format(width, width).format(str(s1), 'man', diff, str(s2)))
+            print('{{:<{}}}     [{{}}, {{}}] ->  {{:<{}}}'.format(width, width).format(str(s1), 'man', s2.taken, str(s2)))
         else:
-            print('{{:<{}}}  <- [{{}}, {{}}]     {{:<{}}}'.format(width, width).format(str(s2), 'man', diff, str(s1)))
+            print('{{:<{}}}  <- [{{}}, {{}}]     {{:<{}}}'.format(width, width).format(str(s2), 'man', s2.taken, str(s1)))
 
-class Queue(list): add = list.append
+class Queue(collections.deque): add = collections.deque.appendleft
 def BFS(star): return search(star, Queue)
 
 def cross_river(G, boat_size):
@@ -81,11 +84,13 @@ def cross_river(G, boat_size):
     display(path(result))
 
 
+#________________________________________________________________________________________________________________________
+# Test
+
 def test_next_states():
     f = State.is_conflict
     ## Mock
     State.is_conflict = lambda s, items: False
-
     s = State([1,2,3,4], 3, 0)
     items_list = [{1,2},{1,3},{1,4},{2,3},{2,4},{3,4},{1},{2},{3},{4},set()]
     for i,x in enumerate(s.next_states()):
