@@ -1,19 +1,24 @@
 import itertools
 import collections
+from heapq import heapify, heappop, heappush
 
 
 class State:
-    def __init__(self, G, boat_size, man, items=None, parent=None, taken=[]):
+    def __init__(self, G, boat_size, man, items=None, parent=None, taken=[], cost=0):
         self.G = G
         self.boat_size = boat_size
         self.man = man
         self.items = set(G) if items is None else set(items)
         self.parent = parent
         self.taken = taken
+        self.cost = cost
 
     def __eq__(self, o):
         return self.G == o.G and self.boat_size == o.boat_size and\
                self.man == o.man and self.items == o.items
+
+    def __lt__(self, o):
+        return self.cost < o.cost
 
     def __hash__(self):
         l = list(self.items)
@@ -32,11 +37,11 @@ class State:
             if not self.is_conflict(here):
                 there = set(self.G) - here
                 man = (self.man + 1) % 2
-                yield State(self.G, self.boat_size, man, there, parent=self, taken=taken)
+                yield State(self.G, self.boat_size, man, there, parent=self, taken=taken, cost=self.cost+len(taken)+self.boat_size)
         
     def what_can_be_taken(self):
         n = self.boat_size-1 if self.boat_size-1 < len(self.items) else len(self.items)
-        for r in range(n, -1, -1): # [n...0]
+        for r in range(n+1):
             for t in itertools.combinations(self.items, r):
                 yield t
 
@@ -64,6 +69,30 @@ def search(star, Frontier):
                 frontier.add(s2)
                 explored.add(s2)
 
+def uniform_cost_search(star):
+    frontier = PriorityQueue([star])
+    explored = set()
+    while frontier:
+        s = frontier.pop()
+        explored.add(s)
+        if s.is_goal():
+            return s
+        for s2 in s.next_states():
+            if s2 not in explored:
+                frontier.add(s2)
+
+
+class PriorityQueue:
+    def __init__(self, iterable):
+        self.h = list(iterable)
+        heapify(self.h)
+
+    def add(self, v):
+        heappush(self.h, v)
+
+    def pop(self):
+        return heappop(self.h)
+
 def display(path):
     width = len(', '.join(path[0].G)) + 5
     for s1,s2 in zip(path, path[1:]):
@@ -75,9 +104,9 @@ def display(path):
 class Queue(collections.deque): add = collections.deque.appendleft
 def BFS(star): return search(star, Queue)
 
-def cross_river(G, boat_size):
+def cross_river(G, boat_size, search=BFS):
     star = State(G, boat_size, 0)
-    result = BFS(star)
+    result = search(star)
     if result is None:
         print('Cannot do it!')
         return
@@ -92,11 +121,13 @@ def test_next_states():
     ## Mock
     State.is_conflict = lambda s, items: False
     s = State([1,2,3,4], 3, 0)
-    items_list = [{1,2},{1,3},{1,4},{2,3},{2,4},{3,4},{1},{2},{3},{4},set()]
+    
+    items_list = [set(),{1},{2},{3},{4},{1,2},{1,3},{1,4},{2,3},{2,4},{3,4}]
     for i,x in enumerate(s.next_states()):
         assert x == State([1,2,3,4], 3, 1, items_list[i])
     s = State([1,2], 3, 0)
-    items_list = [{1,2},{1},{2},set()]
+    
+    items_list = [set(),{1},{2},{1,2}]
     for i,x in enumerate(s.next_states()):
         assert x == State([1,2], 3, 1, items_list[i])
     State.is_conflict = f
@@ -131,9 +162,9 @@ def test_path():
 
 def test_what_can_be_taken():
     s = State(None, 3, 0, [1,2,3])
-    assert list(s.what_can_be_taken()) == [(1,2), (1,3), (2,3), (1,), (2,), (3,), ()]
+    assert list(s.what_can_be_taken()) == [(), (1,), (2,), (3,), (1,2), (1,3), (2,3)]
     s = State(None, 4, 0, [1,2,3])
-    assert list(s.what_can_be_taken()) == [(1,2,3), (1,2), (1,3), (2,3), (1,), (2,), (3,), ()]
+    assert list(s.what_can_be_taken()) == [(), (1,), (2,), (3,), (1,2), (1,3), (2,3), (1,2,3)]
     print('State.what_can_be_taken pass')
 
 def test():
@@ -165,4 +196,4 @@ if __name__ == '__main__':
          grass: [goose, rabbit, goat],
          cat: [mouse],
          carrot: [mouse, rabbit, goat],}
-    cross_river(G, 5)
+    cross_river(G, 5, uniform_cost_search)
