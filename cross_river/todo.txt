@@ -1,0 +1,5 @@
+TODO:
+  uniform-cost-search     DONE
+  
+  Upgrade Class State
+      hash, next_states, is_conflict need to be improved

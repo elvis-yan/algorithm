@@ -1,5 +1,6 @@
 import itertools
 import collections
+import random
 from heapq import heapify, heappop, heappush
 
 
@@ -32,7 +33,9 @@ class State:
         return self == State(self.G, self.boat_size, 1)
 
     def next_states(self):
-        for taken in self.what_can_be_taken():
+        for taken in shuffle(self.what_can_be_taken()):
+            if taken == self.taken:
+                continue
             here = self.items - set(taken)
             if not self.is_conflict(here):
                 there = set(self.G) - here
@@ -59,15 +62,15 @@ def path(s):
 
 def search(star, Frontier):
     frontier = Frontier([star])
-    explored = set([star])
+    explored_cost = {star: 0}
     while frontier:
         s = frontier.pop()
         if s.is_goal():
             return s
         for s2 in s.next_states():
-            if s2 not in explored:
+            if s2 not in explored_cost or s2.cost < explored_cost[s2]:
                 frontier.add(s2)
-                explored.add(s2)
+                explored_cost[s2] = s2.cost
 
 def uniform_cost_search(star):
     frontier = PriorityQueue([star])
@@ -80,6 +83,13 @@ def uniform_cost_search(star):
         for s2 in s.next_states():
             if s2 not in explored:
                 frontier.add(s2)
+
+def shuffle(iterable):
+    if random.randint(1, 10) < 1:
+        l = list(iterable)
+        random.shuffle(l)
+        return l
+    return iterable
 
 
 class PriorityQueue:
@@ -177,7 +187,7 @@ def test():
 
 
 if __name__ == '__main__':
-    test()
+    # test()
     # wolf, goat, cabbage = 'wolf goat cabbage'.split()
     # G = {wolf:[goat], goat:[cabbage, wolf], cabbage:[goat]}
     # cross_river(G, 2)
